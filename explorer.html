@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Perfect File Explorer</title>
+  <!-- Dexie.js CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dexie/3.2.2/dexie.min.js"></script>
+  <style>
+    /* CSS Variables for themes */
+    :root {
+      --bg-color: #f5f5f5;
+      --text-color: #333;
+      --primary-color: #4CAF50;
+      --header-bg: #fff;
+      --item-bg: #fff;
+      --item-hover-bg: #fafafa;
+      --border-color: #ddd;
+    }
+    [data-theme="dark"] {
+      --bg-color: #121212;
+      --text-color: #e0e0e0;
+      --primary-color: #90caf9;
+      --header-bg: #1f1f1f;
+      --item-bg: #1e1e1e;
+      --item-hover-bg: #333;
+      --border-color: #444;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg-color);
+      color: var(--text-color);
+    }
+    header {
+      background: var(--header-bg);
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 {
+      margin: 5px 0;
+      font-size: 1.5em;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .toolbar button {
+      padding: 8px 12px;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      background: var(--primary-color);
+      color: #fff;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+    .toolbar button:hover {
+      background: darken(var(--primary-color), 10%);
+    }
+    .search-container {
+      margin-top: 8px;
+      flex-basis: 100%;
+      text-align: right;
+    }
+    .search-container input {
+      padding: 6px 10px;
+      font-size: 14px;
+      width: 200px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+    }
+    #breadcrumb {
+      margin: 10px 20px;
+      font-size: 14px;
+    }
+    /* Layout: Sidebar + Main */
+    .container {
+      display: flex;
+      min-height: calc(100vh - 120px);
+    }
+    aside#sidebar {
+      width: 250px;
+      border-right: 1px solid var(--border-color);
+      padding: 15px;
+      background: var(--item-bg);
+      transition: transform 0.3s;
+    }
+    aside#sidebar.hidden {
+      transform: translateX(-260px);
+    }
+    aside#sidebar h2 {
+      margin-top: 0;
+      font-size: 1.2em;
+    }
+    #folderTree {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    #folderTree li {
+      margin: 4px 0;
+      cursor: pointer;
+    }
+    #folderTree li:hover {
+      text-decoration: underline;
+    }
+    main#mainContent {
+      flex: 1;
+      padding: 15px;
+    }
+    #file-explorer {
+      background: var(--item-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    /* List view */
+    #file-explorer.list .item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    #file-explorer.list .item:last-child {
+      border-bottom: none;
+    }
+    /* Grid view */
+    #file-explorer.grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 10px;
+    }
+    #file-explorer.grid .item {
+      padding: 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      text-align: center;
+    }
+    .item {
+      background: var(--item-bg);
+      transition: background 0.2s;
+    }
+    .item:hover {
+      background: var(--item-hover-bg);
+    }
+    .item .item-info {
+      cursor: pointer;
+    }
+    .item .actions button {
+      background: none;
+      border: none;
+      color: #c00;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .item input[type="checkbox"] {
+      margin-right: 8px;
+    }
+    /* Modals */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0; top: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      align-items: center;
+      justify-content: center;
+    }
+    .modal.active {
+      display: flex;
+    }
+    .modal-content {
+      background: var(--item-bg);
+      padding: 20px;
+      border-radius: 4px;
+      width: 300px;
+      position: relative;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    .modal-content h2 {
+      margin-top: 0;
+    }
+    .modal-content label {
+      display: block;
+      margin: 10px 0 5px;
+    }
+    .modal-content input,
+    .modal-content textarea {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+    }
+    .modal-content button {
+      padding: 8px 12px;
+      cursor: pointer;
+      background: var(--primary-color);
+      border: none;
+      color: #fff;
+      border-radius: 4px;
+    }
+    .modal-close {
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      font-size: 18px;
+      cursor: pointer;
+    }
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      aside#sidebar {
+        position: absolute;
+        z-index: 900;
+        height: 100%;
+        left: 0;
+        top: 0;
+      }
+      main#mainContent {
+        margin-left: 0;
+      }
+    }
+  </style>
+</head>
+<body data-theme="light">
+  <header>
+    <div class="topbar">
+      <h1>WebOS File Explorer</h1>
+      <div class="toolbar">
+        <button id="toggleSidebarBtn" title="Toggle Sidebar">☰</button>
+        <button id="newFolderBtn">New Folder</button>
+        <button id="newFileBtn">New File</button>
+        <button id="deleteSelectedBtn">Delete Selected</button>
+        <button id="toggleViewBtn">Grid View</button>
+        <button id="toggleThemeBtn">Dark Mode</button>
+        <button id="backBtn">Back</button>
+      </div>
+      <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Search files and folders..." />
+      </div>
+    </div>
+    <div id="breadcrumb">Root</div>
+  </header>
+  <div class="container">
+    <aside id="sidebar">
+      <h2>Folders</h2>
+      <ul id="folderTree"></ul>
+    </aside>
+    <main id="mainContent">
+      <div id="file-explorer" class="list"></div>
+    </main>
+  </div>
+
+  <!-- Modal for Create Item -->
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <span class="modal-close" id="modalClose">&times;</span>
+      <h2 id="modalTitle"></h2>
+      <label for="itemName">Name:</label>
+      <input type="text" id="itemName" placeholder="Enter name" />
+      <div id="fileContentDiv" style="display: none;">
+        <label for="itemContent">Content:</label>
+        <textarea id="itemContent" placeholder="Enter file content"></textarea>
+      </div>
+      <button id="modalSave">Save</button>
+    </div>
+  </div>
+
+  <!-- Modal for File Preview -->
+  <div id="previewModal" class="modal">
+    <div class="modal-content">
+      <span class="modal-close" id="previewModalClose">&times;</span>
+      <h2 id="previewTitle"></h2>
+      <div id="previewContent" style="white-space: pre-wrap; background: #eee; padding:10px; border-radius:4px;"></div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      // Initialize Dexie database
+      const db = new Dexie("FileSystemDB");
+      db.version(1).stores({
+        files: "++id, name, type, parentId, content"
+      });
+
+      // Global state
+      let currentFolderId = 0;
+      let breadcrumb = [{ id: 0, name: "Root" }];
+      let selectedItems = new Set(); // For multi-select
+      let currentView = "list"; // or "grid"
+
+      // UI Elements
+      const explorerDiv = document.getElementById("file-explorer");
+      const breadcrumbDiv = document.getElementById("breadcrumb");
+      const folderTreeUl = document.getElementById("folderTree");
+      const searchInput = document.getElementById("searchInput");
+
+      const toggleSidebarBtn = document.getElementById("toggleSidebarBtn");
+      const sidebar = document.getElementById("sidebar");
+      const newFolderBtn = document.getElementById("newFolderBtn");
+      const newFileBtn = document.getElementById("newFileBtn");
+      const deleteSelectedBtn = document.getElementById("deleteSelectedBtn");
+      const toggleViewBtn = document.getElementById("toggleViewBtn");
+      const toggleThemeBtn = document.getElementById("toggleThemeBtn");
+      const backBtn = document.getElementById("backBtn");
+
+      // Modal for creation
+      const modal = document.getElementById("modal");
+      const modalClose = document.getElementById("modalClose");
+      const modalTitle = document.getElementById("modalTitle");
+      const itemNameInput = document.getElementById("itemName");
+      const fileContentDiv = document.getElementById("fileContentDiv");
+      const itemContentInput = document.getElementById("itemContent");
+      const modalSave = document.getElementById("modalSave");
+      let currentModalType = ""; // "file" or "folder"
+
+      // Modal for file preview
+      const previewModal = document.getElementById("previewModal");
+      const previewModalClose = document.getElementById("previewModalClose");
+      const previewTitle = document.getElementById("previewTitle");
+      const previewContent = document.getElementById("previewContent");
+
+      // Load current folder items and update UI
+      async function loadFiles(folderId = 0) {
+        let query = db.files.where("parentId").equals(folderId);
+        const searchTerm = searchInput.value.trim().toLowerCase();
+        if (searchTerm) {
+          query = query.filter(item => item.name.toLowerCase().includes(searchTerm));
+        }
+        const files = await query.toArray();
+        renderFiles(files);
+        updateBreadcrumb();
+      }
+
+      // Render files/folders in current folder
+      function renderFiles(items) {
+        explorerDiv.innerHTML = "";
+        if (items.length === 0) {
+          explorerDiv.innerHTML = "<p style='padding:10px;'>No items in this folder.</p>";
+          return;
+        }
+        items.forEach(item => {
+          const itemDiv = document.createElement("div");
+          itemDiv.className = "item";
+          // For grid view, center content
+          if (currentView === "grid") {
+            itemDiv.style.display = "flex";
+            itemDiv.style.flexDirection = "column";
+            itemDiv.style.alignItems = "center";
+          }
+          // Checkbox for multi-select
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = selectedItems.has(item.id);
+          checkbox.onclick = (e) => {
+            e.stopPropagation();
+            if (checkbox.checked) {
+              selectedItems.add(item.id);
+            } else {
+              selectedItems.delete(item.id);
+            }
+          };
+          itemDiv.appendChild(checkbox);
+
+          // Item info (icon and name)
+          const infoSpan = document.createElement("span");
+          infoSpan.className = "item-info";
+          infoSpan.textContent = (item.type === "folder" ? "📁 " : "📄 ") + item.name;
+          infoSpan.onclick = () => {
+            if (item.type === "folder") {
+              currentFolderId = item.id;
+              breadcrumb.push({ id: item.id, name: item.name });
+              selectedItems.clear();
+              loadFiles(item.id);
+            } else {
+              // Open preview modal for file
+              previewTitle.textContent = item.name;
+              previewContent.textContent = item.content || "[Empty]";
+              openPreviewModal();
+            }
+          };
+          itemDiv.appendChild(infoSpan);
+
+          // Actions area (delete button, rename button if desired)
+          const actionsDiv = document.createElement("div");
+          actionsDiv.className = "actions";
+          const delBtn = document.createElement("button");
+          delBtn.textContent = "Delete";
+          delBtn.onclick = async (e) => {
+            e.stopPropagation();
+            if (confirm("Delete '" + item.name + "'?")) {
+              await db.files.delete(item.id);
+              selectedItems.delete(item.id);
+              loadFiles(currentFolderId);
+              loadFolderTree();
+            }
+          };
+          actionsDiv.appendChild(delBtn);
+          itemDiv.appendChild(actionsDiv);
+
+          explorerDiv.appendChild(itemDiv);
+        });
+      }
+
+      // Update breadcrumb navigation
+      function updateBreadcrumb() {
+        breadcrumbDiv.innerHTML = "";
+        breadcrumb.forEach((crumb, index) => {
+          const span = document.createElement("span");
+          span.textContent = crumb.name;
+          span.style.cursor = "pointer";
+          span.onclick = () => {
+            currentFolderId = crumb.id;
+            breadcrumb = breadcrumb.slice(0, index + 1);
+            selectedItems.clear();
+            loadFiles(currentFolderId);
+          };
+          breadcrumbDiv.appendChild(span);
+          if (index < breadcrumb.length - 1) {
+            const sep = document.createElement("span");
+            sep.textContent = " / ";
+            breadcrumbDiv.appendChild(sep);
+          }
+        });
+      }
+
+      // Load folder tree for sidebar (recursive)
+      async function loadFolderTree() {
+        const folders = await db.files.where("type").equals("folder").toArray();
+        // Build tree: assume root has parentId 0.
+        function buildTree(parentId) {
+          return folders
+            .filter(f => f.parentId === parentId)
+            .map(f => ({ ...f, children: buildTree(f.id) }));
+        }
+        const tree = buildTree(0);
+        renderFolderTree(tree);
+      }
+
+      function renderFolderTree(tree, parentUl = folderTreeUl) {
+        parentUl.innerHTML = "";
+        tree.forEach(node => {
+          const li = document.createElement("li");
+          li.textContent = node.name;
+          li.onclick = (e) => {
+            e.stopPropagation();
+            currentFolderId = node.id;
+            breadcrumb = [{id: 0, name: "Root"}]; // reset breadcrumb
+            // Build breadcrumb by traversing upward (if needed, here simplified)
+            breadcrumb.push({ id: node.id, name: node.name });
+            selectedItems.clear();
+            loadFiles(node.id);
+          };
+          parentUl.appendChild(li);
+          if (node.children && node.children.length > 0) {
+            const ul = document.createElement("ul");
+            ul.style.paddingLeft = "15px";
+            renderFolderTree(node.children, ul);
+            parentUl.appendChild(ul);
+          }
+        });
+      }
+
+      // Modal functions for creation
+      function openModal(type) {
+        currentModalType = type;
+        modal.classList.add("active");
+        itemNameInput.value = "";
+        if (type === "file") {
+          modalTitle.textContent = "New File";
+          fileContentDiv.style.display = "block";
+          itemContentInput.value = "";
+        } else {
+          modalTitle.textContent = "New Folder";
+          fileContentDiv.style.display = "none";
+        }
+      }
+      function closeModal() {
+        modal.classList.remove("active");
+      }
+      modalSave.onclick = async () => {
+        const name = itemNameInput.value.trim();
+        if (!name) {
+          alert("Name cannot be empty!");
+          return;
+        }
+        const content = currentModalType === "file" ? itemContentInput.value : "";
+        await db.files.add({
+          name,
+          type: currentModalType,
+          parentId: currentFolderId,
+          content
+        });
+        closeModal();
+        loadFiles(currentFolderId);
+        loadFolderTree();
+      };
+      modalClose.onclick = closeModal;
+      window.onclick = (e) => {
+        if (e.target === modal) closeModal();
+        if (e.target === previewModal) closePreviewModal();
+      };
+
+      // Preview modal functions
+      function openPreviewModal() {
+        previewModal.classList.add("active");
+      }
+      function closePreviewModal() {
+        previewModal.classList.remove("active");
+      }
+      previewModalClose.onclick = closePreviewModal;
+
+      // Toolbar event listeners
+      newFolderBtn.addEventListener("click", () => openModal("folder"));
+      newFileBtn.addEventListener("click", () => openModal("file"));
+      deleteSelectedBtn.addEventListener("click", async () => {
+        if (selectedItems.size === 0) {
+          alert("No items selected.");
+          return;
+        }
+        if (confirm("Delete selected items?")) {
+          for (let id of selectedItems) {
+            await db.files.delete(id);
+          }
+          selectedItems.clear();
+          loadFiles(currentFolderId);
+          loadFolderTree();
+        }
+      });
+      toggleViewBtn.addEventListener("click", () => {
+        currentView = currentView === "list" ? "grid" : "list";
+        explorerDiv.className = currentView;
+        toggleViewBtn.textContent = currentView === "list" ? "Grid View" : "List View";
+      });
+      toggleThemeBtn.addEventListener("click", () => {
+        const body = document.body;
+        if (body.getAttribute("data-theme") === "light") {
+          body.setAttribute("data-theme", "dark");
+          toggleThemeBtn.textContent = "Light Mode";
+        } else {
+          body.setAttribute("data-theme", "light");
+          toggleThemeBtn.textContent = "Dark Mode";
+        }
+      });
+      backBtn.addEventListener("click", () => {
+        if (breadcrumb.length > 1) {
+          breadcrumb.pop();
+          currentFolderId = breadcrumb[breadcrumb.length - 1].id;
+          selectedItems.clear();
+          loadFiles(currentFolderId);
+        }
+      });
+      toggleSidebarBtn.addEventListener("click", () => {
+        sidebar.classList.toggle("hidden");
+      });
+      searchInput.addEventListener("input", () => loadFiles(currentFolderId));
+
+      // Initial load
+      loadFiles();
+      loadFolderTree();
+    });
+  </script>
+</body>
+</html>

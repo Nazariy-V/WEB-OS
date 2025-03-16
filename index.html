@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Scalable Browser Desktop with Resizable Windows</title>
+  <style>
+    /* Base reset and desktop container */
+    html, body {
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: sans-serif;
+      background-color: #1e1e1e;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+    #desktop {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #2e2e2e, #1e1e1e);
+    }
+    /* Desktop icons */
+    .desktop-icon {
+      position: absolute;
+      width: 80px;
+      text-align: center;
+      color: white;
+      cursor: pointer;
+      user-select: none;
+    }
+    .desktop-icon img {
+      width: 64px;
+      height: 64px;
+      display: block;
+      margin: 0 auto;
+    }
+    .desktop-icon span {
+      display: block;
+      margin-top: 5px;
+      font-size: 12px;
+    }
+    /* Window styles */
+    .window {
+      position: absolute;
+      background: #000000;
+      border: 1px solid #ccc;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      border-radius: 4px;
+      overflow: hidden;
+      display: block;
+    }
+    .window-header {
+      background: #0078d7;
+      color: #fff;
+      padding: 5px 10px;
+      cursor: move;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .window-body {
+      padding: 10px;
+      overflow: auto;
+      height: calc(100% - 32px);
+    }
+    .window-controls {
+      display: flex;
+      gap: 5px;
+    }
+    .window-controls span {
+      cursor: pointer;
+      user-select: none;
+    }
+    /* Taskbar styles */
+    #taskbar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: #333;
+      color: #fff;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      box-sizing: border-box;
+    }
+    .taskbar-item {
+      margin-right: 10px;
+      cursor: pointer;
+      padding: 2px 6px;
+      background: #555;
+      border-radius: 3px;
+    }
+    /* Resizable handle styles */
+    .resize-handle {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      right: 0;
+      bottom: 0;
+      cursor: se-resize;
+      background: rgba(0, 0, 0, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <div id="desktop"></div>
+  <div id="taskbar"></div>
+
+  <script>
+    // WindowManager handles window creation and management
+    const WindowManager = {
+      windows: {},
+      zIndex: 10,
+      desktop: document.getElementById('desktop'),
+      taskbar: document.getElementById('taskbar'),
+
+      createWindow: function(id, title, content) {
+        if (this.windows[id]) {
+          // If window already exists, bring it to the front
+          this.bringToFront(this.windows[id].element);
+          return;
+        }
+        // Create window element
+        const win = document.createElement('div');
+        win.classList.add('window');
+        win.style.width = '320px';
+        win.style.height = '240px';
+        win.style.left = '100px';
+        win.style.top = '100px';
+        win.style.zIndex = ++this.zIndex;
+        win.dataset.windowId = id;
+
+        // Create header with controls
+        const header = document.createElement('div');
+        header.classList.add('window-header');
+        header.innerHTML = `
+          <span class="title">${title}</span>
+          <span class="window-controls">
+            <span class="minimize">_</span>
+            <span class="maximize">[ ]</span>
+            <span class="close">&times;</span>
+          </span>
+        `;
+
+        // Create window body
+        const body = document.createElement('div');
+        body.classList.add('window-body');
+        body.innerHTML = content;
+
+        // Create resizable handle
+        const resizeHandle = document.createElement('div');
+        resizeHandle.classList.add('resize-handle');
+
+        win.appendChild(header);
+        win.appendChild(body);
+        win.appendChild(resizeHandle);
+        this.desktop.appendChild(win);
+
+        // Store window data
+        this.windows[id] = {
+          element: win,
+          header: header,
+          body: body,
+          resizeHandle: resizeHandle,
+          minimized: false,
+          maximized: false,
+          prevPosition: {
+            left: win.style.left,
+            top: win.style.top,
+            width: win.style.width,
+            height: win.style.height
+          }
+        };
+
+        // Event listeners for window controls
+        header.querySelector('.close').addEventListener('click', () => {
+          this.closeWindow(id);
+        });
+        header.querySelector('.minimize').addEventListener('click', () => {
+          this.minimizeWindow(id);
+        });
+        header.querySelector('.maximize').addEventListener('click', () => {
+          this.maximizeWindow(id);
+        });
+
+        // Make window draggable via its header
+        this.makeDraggable(win, header);
+        // Make window resizable via its resize handle
+        this.makeResizable(win, resizeHandle);
+
+        // Create taskbar item for this window
+        const taskbarItem = document.createElement('div');
+        taskbarItem.classList.add('taskbar-item');
+        taskbarItem.textContent = title;
+        taskbarItem.dataset.windowId = id;
+        taskbarItem.addEventListener('click', () => {
+          this.toggleWindow(id);
+        });
+        this.taskbar.appendChild(taskbarItem);
+        this.windows[id].taskbarItem = taskbarItem;
+
+        // Bring window to front when clicked
+        win.addEventListener('mousedown', () => {
+          this.bringToFront(win);
+        });
+      },
+
+      bringToFront: function(win) {
+        win.style.zIndex = ++this.zIndex;
+      },
+
+      closeWindow: function(id) {
+        if (this.windows[id]) {
+          const win = this.windows[id].element;
+          this.desktop.removeChild(win);
+          this.taskbar.removeChild(this.windows[id].taskbarItem);
+          delete this.windows[id];
+        }
+      },
+
+      minimizeWindow: function(id) {
+        if (this.windows[id]) {
+          const win = this.windows[id].element;
+          win.style.display = 'none';
+          this.windows[id].minimized = true;
+        }
+      },
+
+      maximizeWindow: function(id) {
+        if (this.windows[id]) {
+          const winObj = this.windows[id];
+          const win = winObj.element;
+          if (!winObj.maximized) {
+            // Save current position and size
+            winObj.prevPosition = {
+              left: win.style.left,
+              top: win.style.top,
+              width: win.style.width,
+              height: win.style.height
+            };
+            win.style.left = '0';
+            win.style.top = '0';
+            win.style.width = this.desktop.clientWidth + 'px';
+            // Adjust height to account for the taskbar
+            win.style.height = (this.desktop.clientHeight - this.taskbar.clientHeight) + 'px';
+            winObj.maximized = true;
+          } else {
+            // Restore previous dimensions
+            win.style.left = winObj.prevPosition.left;
+            win.style.top = winObj.prevPosition.top;
+            win.style.width = winObj.prevPosition.width;
+            win.style.height = winObj.prevPosition.height;
+            winObj.maximized = false;
+          }
+          this.bringToFront(win);
+        }
+      },
+
+      toggleWindow: function(id) {
+        if (this.windows[id]) {
+          const win = this.windows[id].element;
+          if (win.style.display === 'none') {
+            win.style.display = 'block';
+            this.bringToFront(win);
+            this.windows[id].minimized = false;
+          } else {
+            win.style.display = 'none';
+            this.windows[id].minimized = true;
+          }
+        }
+      },
+
+      // Enable dragging of windows by their header
+      makeDraggable: function(elmnt, handle) {
+        let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+        handle.onmousedown = dragMouseDown;
+        
+        const self = this;
+        function dragMouseDown(e) {
+          e.preventDefault();
+          pos3 = e.clientX;
+          pos4 = e.clientY;
+          document.onmouseup = closeDragElement;
+          document.onmousemove = elementDrag;
+          self.bringToFront(elmnt);
+        }
+        
+        function elementDrag(e) {
+          e.preventDefault();
+          pos1 = pos3 - e.clientX;
+          pos2 = pos4 - e.clientY;
+          pos3 = e.clientX;
+          pos4 = e.clientY;
+          elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
+          elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+        }
+        
+        function closeDragElement() {
+          document.onmouseup = null;
+          document.onmousemove = null;
+        }
+      },
+
+      // Enable resizing of windows using the resize handle
+      makeResizable: function(elmnt, handle) {
+        let startX, startY, startWidth, startHeight;
+        handle.addEventListener('mousedown', initResize);
+        
+        function initResize(e) {
+          e.preventDefault();
+          startX = e.clientX;
+          startY = e.clientY;
+          startWidth = parseInt(document.defaultView.getComputedStyle(elmnt).width, 10);
+          startHeight = parseInt(document.defaultView.getComputedStyle(elmnt).height, 10);
+          document.documentElement.addEventListener('mousemove', doResize, false);
+          document.documentElement.addEventListener('mouseup', stopResize, false);
+        }
+        
+        function doResize(e) {
+          elmnt.style.width = (startWidth + e.clientX - startX) + 'px';
+          elmnt.style.height = (startHeight + e.clientY - startY) + 'px';
+        }
+        
+        function stopResize() {
+          document.documentElement.removeEventListener('mousemove', doResize, false);
+          document.documentElement.removeEventListener('mouseup', stopResize, false);
+        }
+      }
+    };
+
+    // Helper: Create a desktop icon that opens a window when double-clicked
+    function createDesktopIcon(id, title, content, left, top, iconUrl) {
+      const icon = document.createElement('div');
+      icon.classList.add('desktop-icon');
+      icon.style.left = left;
+      icon.style.top = top;
+      icon.dataset.windowId = id;
+      icon.innerHTML = `
+        <img src="${iconUrl}" alt="${title}">
+        <span>${title}</span>
+      `;
+      icon.addEventListener('dblclick', () => {
+        WindowManager.createWindow(id, title, content);
+      });
+      WindowManager.desktop.appendChild(icon);
+    }
+
+    // Create sample desktop icons for multiple apps
+    createDesktopIcon('explorer', 'File Explorer', '<iframe src = "explorer.html"></iframe>', '20px', '20px', 'icons/explorer.png');
+    createDesktopIcon('cmd', 'Command Prompt', '<iframe src = "cmd.html"></iframe>', '20px', '120px', 'icons/cmd.png');
+    createDesktopIcon('app3', 'App Three', '<p>This is App Three content.</p>', '20px', '220px', 'https://via.placeholder.com/64');
+  </script>
+</body>
+</html>

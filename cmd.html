@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebOS CMD</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dexie/3.2.2/dexie.min.js"></script>
+  <style>
+    body {
+      font-family: Consolas, monospace;
+      background: black;
+      color: white;
+      margin: 0;
+      padding: 20px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    #output {
+      white-space: pre-wrap;
+      flex-grow: 1;
+      overflow-y: auto;
+    }
+    .cmd-line {
+      display: flex;
+      align-items: center;
+    }
+    .cmd-prompt {
+      color: white;
+      margin-right: 5px;
+    }
+    #cmdInput {
+      background: black;
+      border: none;
+      color: white;
+      font-family: inherit;
+      font-size: 1rem;
+      width: 100%;
+      outline: none;
+    }
+    #cmdInput::placeholder {
+      color: gray;
+    }
+    /* Cursor effect */
+    #cmdInput:focus {
+      caret-color: white;
+    }
+  </style>
+</head>
+<body>
+  <div id="output"></div>
+  <div class="cmd-line">
+    <span class="cmd-prompt">C:\Users\WebOS></span>
+    <input type="text" id="cmdInput" autofocus />
+  </div>
+  <script> (async function() {
+    const outputDiv = document.getElementById("output");
+    const cmdInput = document.getElementById("cmdInput");
+  
+    // Initialize Dexie database (same as file explorer)
+    const db = new Dexie("FileSystemDB");
+    db.version(1).stores({
+      files: "++id, name, type, parentId, content"
+    });
+  
+    let currentFolderId = 0;
+    let breadcrumb = [{ id: 0, name: "C:\\Users\\WebOS" }];
+  
+    function printOutput(text) {
+      outputDiv.innerHTML += text + "<br>";
+      outputDiv.scrollTop = outputDiv.scrollHeight;
+    }
+  
+    async function cmd_ls() {
+      const items = await db.files.where("parentId").equals(currentFolderId).toArray();
+      if (items.length === 0) {
+        printOutput("No files or folders found.");
+        return;
+      }
+      items.forEach(item => {
+        const prefix = item.type === "folder" ? "<DIR> " : "      ";
+        printOutput(`${prefix} ${item.name}`);
+      });
+    }
+  
+    async function cmd_cd(args) {
+      if (args[0] === "..") {
+        if (breadcrumb.length > 1) {
+          breadcrumb.pop();
+          currentFolderId = breadcrumb[breadcrumb.length - 1].id;
+        } else {
+          printOutput("Already at Root.");
+        }
+        return;
+      }
+      const folderName = args.join(" ");
+      const folder = await db.files.where({ parentId: currentFolderId, type: "folder", name: folderName }).first();
+      if (folder) {
+        currentFolderId = folder.id;
+        breadcrumb.push({ id: folder.id, name: folder.name });
+      } else {
+        printOutput(`Folder "${folderName}" not found.`);
+      }
+    }
+  
+    async function cmd_pwd() {
+      const path = breadcrumb.map(b => b.name).join("\\");
+      printOutput(path);
+    }
+  
+    async function cmd_cat(args) {
+      const filename = args.join(" ");
+      const file = await db.files.where({ parentId: currentFolderId, type: "file", name: filename }).first();
+      if (file) {
+        printOutput(`--- ${file.name} ---\n${file.content}`);
+      } else {
+        printOutput(`File "${filename}" not found.`);
+      }
+    }
+  
+    async function cmd_mkdir(args) {
+      const folderName = args.join(" ");
+      if (!folderName) {
+        printOutput("Usage: mkdir <folder_name>");
+        return;
+      }
+      await db.files.add({ name: folderName, type: "folder", parentId: currentFolderId, content: "" });
+      printOutput(`Folder "${folderName}" created.`);
+    }
+  
+    async function cmd_touch(args) {
+      const filename = args.join(" ");
+      if (!filename) {
+        printOutput("Usage: touch <file_name>");
+        return;
+      }
+      await db.files.add({ name: filename, type: "file", parentId: currentFolderId, content: "" });
+      printOutput(`File "${filename}" created.`);
+    }
+  
+    async function cmd_rm(args) {
+      const name = args.join(" ");
+      if (!name) {
+        printOutput("Usage: rm <name>");
+        return;
+      }
+      const item = await db.files.where({ parentId: currentFolderId, name }).first();
+      if (item) {
+        await db.files.delete(item.id);
+        printOutput(`"${name}" deleted.`);
+      } else {
+        printOutput(`Item "${name}" not found.`);
+      }
+    }
+  
+    function cmd_help() {
+      const helpText = `
+    Windows WebOS CMD Emulator
+    --------------------------
+    ls               - List files and folders in current directory
+    cd <folder>      - Change directory (use 'cd ..' to go up)
+    pwd              - Show current directory path
+    cat <file>       - Display file content
+    mkdir <folder>   - Create a new folder
+    touch <file>     - Create a new file (empty)
+    rm <name>        - Remove a file or folder
+    help             - Show this help text
+      `;
+      printOutput(helpText);
+    }
+  
+    async function processCommand(cmd) {
+      printOutput(`<span class="cmd-prompt">C:\\Users\\WebOS></span> ${cmd}`);
+      const parts = cmd.trim().split(" ");
+      const command = parts[0];
+      const args = parts.slice(1);
+      switch (command) {
+        case "ls":
+          await cmd_ls();
+          break;
+        case "cd":
+          await cmd_cd(args);
+          break;
+        case "pwd":
+          await cmd_pwd();
+          break;
+        case "cat":
+          await cmd_cat(args);
+          break;
+        case "mkdir":
+          await cmd_mkdir(args);
+          break;
+        case "touch":
+          await cmd_touch(args);
+          break;
+        case "rm":
+          await cmd_rm(args);
+          break;
+        case "help":
+          cmd_help();
+          break;
+        case "clear":
+          outputDiv.innerHTML = "";
+          break;
+        default:
+          printOutput("Unknown command. Type 'help' for commands list.");
+      }
+    }
+  
+    printOutput("Windows WebOS CMD Emulator. Type 'help' for available commands.");
+  
+    cmdInput.addEventListener("keypress", async (e) => {
+      if (e.key === "Enter") {
+        const command = cmdInput.value;
+        cmdInput.value = "";
+        await processCommand(command);
+      }
+    });
+  })();
+  </script>
+</body>
+</html>
