@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebOS Notepad</title>
+  <!-- Load Dexie from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dexie/3.2.2/dexie.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: Consolas, monospace;
+      background: #fff;
+      color: #000;
+    }
+    header {
+      background: #0A64AD;
+      color: #fff;
+      padding: 8px 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 {
+      font-size: 1.2em;
+      margin: 0;
+    }
+    header button {
+      background: #fff;
+      color: #0A64AD;
+      border: none;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-family: inherit;
+      margin-left: 5px;
+      border-radius: 3px;
+    }
+    textarea {
+      width: 100%;
+      height: calc(100vh - 50px);
+      border: none;
+      resize: none;
+      font-family: Consolas, monospace;
+      font-size: 1em;
+      padding: 10px;
+      box-sizing: border-box;
+      outline: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 id="fileTitle">Notepad - [Untitled]</h1>
+    <div>
+      <button id="saveBtn">Save</button>
+      <button id="cancelBtn">Cancel</button>
+    </div>
+  </header>
+  <textarea id="editor" placeholder="Type your content here..."></textarea>
+  <script>
+    (function () {
+  const db = new Dexie("FileSystemDB");
+  db.version(1).stores({
+    files: "++id, name, type, parentId, content"
+  });
+
+  const fileTitle = document.getElementById("fileTitle");
+  const editor = document.getElementById("editor");
+  const saveBtn = document.getElementById("saveBtn");
+  const cancelBtn = document.getElementById("cancelBtn");
+
+  function getQueryParam(param) {
+    const params = new URLSearchParams(window.location.search);
+    return params.get(param);
+  }
+
+  const fileId = getQueryParam("fileId");
+
+  // Load file data if editing an existing file
+  if (fileId) {
+    db.files.get(Number(fileId)).then(file => {
+      if (file) {
+        fileTitle.textContent = "Notepad - " + file.name;
+        editor.value = file.content || "";
+      } else {
+        fileTitle.textContent = "Notepad - [File Not Found]";
+      }
+    }).catch(err => {
+      fileTitle.textContent = "Notepad - [Error loading file]";
+      console.error(err);
+    });
+  } else {
+    fileTitle.textContent = "Notepad - [Untitled]";
+  }
+
+  // Save button: update file content if fileId exists; otherwise prompt for file name to create new file.
+  saveBtn.addEventListener("click", async () => {
+    if (fileId) {
+      await db.files.update(Number(fileId), { content: editor.value });
+      alert("File saved!");
+    } else {
+      const name = prompt("Enter file name:");
+      if (name) {
+        const newId = await db.files.add({
+          name,
+          type: "file",
+          parentId: 0,
+          content: editor.value
+        });
+        alert("New file created with ID: " + newId);
+        // Optionally, update URL so subsequent edits open the same file:
+        window.history.replaceState({}, "", `?fileId=${newId}`);
+        fileTitle.textContent = "Notepad - " + name;
+      }
+    }
+  });
+
+  // Cancel button: simply navigate back (or close window)
+  cancelBtn.addEventListener("click", () => {
+    window.history.back();
+  });
+})();
+
+  </script>
+</body>
+</html>

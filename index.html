@@ -56,7 +56,8 @@
       display: block;
     }
     .window-header {
-      background: #0078d7;
+      position: relative;
+      background: #8c8c8c;
       color: #fff;
       padding: 5px 10px;
       cursor: move;
@@ -66,9 +67,9 @@
       align-items: center;
     }
     .window-body {
-      padding: 10px;
-      overflow: auto;
-      height: calc(100% - 32px);
+      overflow: hidden;
+      height: calc(100% - 29px);
+
     }
     .window-controls {
       display: flex;
@@ -336,7 +337,9 @@
         }
       }
     };
-
+    function openFile(id, name){
+      WindowManager.createWindow("notepad" + id, "Notepad - " + name, `<iframe src = "notepad.html?fileId=${id}"></iframe>`)
+    }
     // Helper: Create a desktop icon that opens a window when double-clicked
     function createDesktopIcon(id, title, content, left, top, iconUrl) {
       const icon = document.createElement('div');
@@ -357,7 +360,7 @@
     // Create sample desktop icons for multiple apps
     createDesktopIcon('explorer', 'File Explorer', '<iframe src = "explorer.html"></iframe>', '20px', '20px', 'icons/explorer.png');
     createDesktopIcon('cmd', 'Command Prompt', '<iframe src = "cmd.html"></iframe>', '20px', '120px', 'icons/cmd.png');
-    createDesktopIcon('app3', 'App Three', '<p>This is App Three content.</p>', '20px', '220px', 'https://via.placeholder.com/64');
+    createDesktopIcon('notepad', 'Notepad', '<iframe src = "notepad.html"></iframe>', '20px', '220px', 'https://via.placeholder.com/64');
   </script>
 </body>
 </html>

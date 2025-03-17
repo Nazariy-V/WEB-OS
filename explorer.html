@@ -386,14 +386,12 @@
           infoSpan.onclick = () => {
             if (item.type === "folder") {
               currentFolderId = item.id;
-              breadcrumb.push({ id: item.id, name: item.name });
+              breadcrumb.push({ id: item.id, name: item.name }); 
               selectedItems.clear();
               loadFiles(item.id);
             } else {
-              // Open preview modal for file
-              previewTitle.textContent = item.name;
-              previewContent.textContent = item.content || "[Empty]";
-              openPreviewModal();
+              console.log(parent)
+              parent.openFile(item.id,item.name);
             }
           };
           itemDiv.appendChild(infoSpan);

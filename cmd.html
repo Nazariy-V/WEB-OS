@@ -12,7 +12,6 @@
       color: white;
       margin: 0;
       padding: 20px;
-      height: 100vh;
       display: flex;
       flex-direction: column;
     }
@@ -50,13 +49,13 @@
 <body>
   <div id="output"></div>
   <div class="cmd-line">
-    <span class="cmd-prompt">C:\Users\WebOS></span>
+    <span class="cmd-prompt" id="prompt">C:\></span>
     <input type="text" id="cmdInput" autofocus />
   </div>
   <script> (async function() {
     const outputDiv = document.getElementById("output");
     const cmdInput = document.getElementById("cmdInput");
-  
+    const cmdPrompt = document.getElementById("prompt");
     // Initialize Dexie database (same as file explorer)
     const db = new Dexie("FileSystemDB");
     db.version(1).stores({
@@ -64,9 +63,10 @@
     });
   
     let currentFolderId = 0;
-    let breadcrumb = [{ id: 0, name: "C:\\Users\\WebOS" }];
+    let breadcrumb = [{ id: 0, name: "C:" }];
   
     function printOutput(text) {
+      console.log(breadcrumb);
       outputDiv.innerHTML += text + "<br>";
       outputDiv.scrollTop = outputDiv.scrollHeight;
     }
@@ -91,6 +91,7 @@
         } else {
           printOutput("Already at Root.");
         }
+        
         return;
       }
       const folderName = args.join(" ");
@@ -98,7 +99,9 @@
       if (folder) {
         currentFolderId = folder.id;
         breadcrumb.push({ id: folder.id, name: folder.name });
+        cmdPrompt.innerText = breadcrumb.map((b) => b.name).join("\\")+">";
       } else {
+        
         printOutput(`Folder "${folderName}" not found.`);
       }
     }
@@ -152,6 +155,16 @@
         printOutput(`Item "${name}" not found.`);
       }
     }
+    async function cmd_vim(args) {
+  const filename = args.join(" ");
+  const file = await db.files.where({ parentId: currentFolderId, type: "file", name: filename }).first();
+  if (file) {
+    parent.openFile(id, title);
+  } else {
+    printOutput(`File "${filename}" not found.`);
+  }
+}
+
   
     function cmd_help() {
       const helpText = `
@@ -165,12 +178,14 @@
     touch <file>     - Create a new file (empty)
     rm <name>        - Remove a file or folder
     help             - Show this help text
+    vim <file>       - Open a file in text editor
+    clear            - Clear the screen
       `;
       printOutput(helpText);
     }
   
     async function processCommand(cmd) {
-      printOutput(`<span class="cmd-prompt">C:\\Users\\WebOS></span> ${cmd}`);
+      printOutput(`<span class="cmd-prompt">${breadcrumb.map((x)=> x.name).join("\\")+">"}</span> ${cmd}`);
       const parts = cmd.trim().split(" ");
       const command = parts[0];
       const args = parts.slice(1);
@@ -202,6 +217,12 @@
         case "clear":
           outputDiv.innerHTML = "";
           break;
+        case "vim":
+          await cmd_vim(args);
+          break;
+
+        
+
         default:
           printOutput("Unknown command. Type 'help' for commands list.");
       }
