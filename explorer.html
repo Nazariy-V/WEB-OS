@@ -9,12 +9,12 @@
   <style>
     /* CSS Variables for themes */
     :root {
-      --bg-color: #f5f5f5;
+      --bg-color: #f2f2f2;
       --text-color: #333;
-      --primary-color: #4CAF50;
+      --primary-color: #bebebe;
       --header-bg: #fff;
       --item-bg: #fff;
-      --item-hover-bg: #fafafa;
+      --item-hover-bg: #dfdfdf;
       --border-color: #ddd;
     }
     [data-theme="dark"] {
@@ -62,7 +62,6 @@
       cursor: pointer;
       border: none;
       background: var(--primary-color);
-      color: #fff;
       border-radius: 4px;
       transition: background 0.2s;
     }
@@ -296,13 +295,12 @@
     document.addEventListener("DOMContentLoaded", function() {
       // Initialize Dexie database
       const db = new Dexie("FileSystemDB");
-      db.version(1).stores({
+      db.version(3).stores({
         files: "++id, name, type, parentId, content"
       });
-
       // Global state
       let currentFolderId = 0;
-      let breadcrumb = [{ id: 0, name: "Root" }];
+      let breadcrumb = [{ id: 0, name: "root" }];
       let selectedItems = new Set(); // For multi-select
       let currentView = "list"; // or "grid"
 
