@@ -71,7 +71,7 @@
       });
 
       let currentFolderId = 0;
-      let breadcrumb = [{ id: 0, name: "C:" }];
+      let breadcrumb = [{ id: 0, name: "root" }];
 
       function printOutput(text) {
         console.log(breadcrumb);
@@ -179,7 +179,7 @@
 
       function cmd_help() {
         const helpText = `
-    Windows WebOS CMD Emulator
+    WebOS console
     --------------------------
     ls               - List files and folders in current directory
     cd <folder>      - Change directory (use 'cd ..' to go up)
@@ -240,7 +240,7 @@
         }
       }
 
-      printOutput("Windows WebOS CMD Emulator. Type 'help' for available commands.");
+      printOutput("WebOS console. Type 'help' for available commands.");
 
       cmdInput.addEventListener("keypress", async (e) => {
         if (e.key === "Enter") {

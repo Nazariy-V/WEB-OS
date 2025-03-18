@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Scalable Browser Desktop with Resizable Windows</title>
+  <title>WebOS</title>
   <style>
     /* Base reset and desktop container */
     html, body {
@@ -133,10 +133,10 @@
         // Create window element
         const win = document.createElement('div');
         win.classList.add('window');
-        win.style.width = '320px';
-        win.style.height = '240px';
-        win.style.left = '100px';
-        win.style.top = '100px';
+        win.style.width = '960px';
+        win.style.height = '430px';
+        win.style.left = `${100+10*Object.keys(this.windows).length}px`;
+        win.style.top = `${100+10*Object.keys(this.windows).length}px`;
         win.style.zIndex = ++this.zIndex;
         win.dataset.windowId = id;
 
