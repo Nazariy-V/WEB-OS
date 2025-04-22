@@ -60,7 +60,7 @@
   <script>
     (function () {
   const db = new Dexie("FileSystemDB");
-  db.version(1).stores({
+  db.version(3).stores({
     files: "++id, name, type, parentId, content"
   });
 

@@ -8,6 +8,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dexie/3.2.2/dexie.min.js"></script>
   <style>
     /* CSS Variables for themes */
+    
     :root {
       --bg-color: #f2f2f2;
       --text-color: #333;
@@ -20,7 +21,7 @@
     [data-theme="dark"] {
       --bg-color: #121212;
       --text-color: #e0e0e0;
-      --primary-color: #90caf9;
+      --primary-color: #0b4a7e;
       --header-bg: #1f1f1f;
       --item-bg: #1e1e1e;
       --item-hover-bg: #333;
@@ -74,9 +75,11 @@
       text-align: right;
     }
     .search-container input {
+      color: var(--text-color);
       padding: 6px 10px;
       font-size: 14px;
       width: 200px;
+      background: var(--header-bg);
       border: 1px solid var(--border-color);
       border-radius: 4px;
     }

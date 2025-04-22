@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>WebOS</title>
   <style>
-    /* Base reset and desktop container */
+    
     html, body {
       overflow: hidden;
       margin: 0;
@@ -110,14 +110,144 @@
       cursor: se-resize;
       background: rgba(0, 0, 0, 0.3);
     }
+    #custom-menu {
+  position: absolute;
+  background-color: #222;
+  color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  display: none;
+  z-index: 1000;
+  min-width: 150px;
+}
+
+#custom-menu ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#custom-menu li {
+  padding: 10px 15px;
+  cursor: pointer;
+  border-bottom: 1px solid #444;
+}
+
+#custom-menu li:last-child {
+  border-bottom: none;
+}
+
+#custom-menu li:hover {
+  background-color: #444;
+}
+
   </style>
 </head>
 <body>
   <div id="desktop"></div>
   <div id="taskbar"></div>
-
+  <div id="custom-menu">
+    <ul id="file-menu" style="display: none;">
+      <li onclick="openFileFromMenu()">Open</li>
+      <li onclick="renameFile()">Rename</li>
+      <li onclick="deleteFile()">Delete</li>
+    </ul>
+    <ul id="empty-menu" style="display: none;">
+      <li onclick="createFile()">Create File</li>
+      <li onclick="createFolder()">Create Folder</li>
+    </ul>
+  </div>  
   <script>
-    // WindowManager handles window creation and management
+    let rightClickedElement = null;
+    let mouseX = 0;
+    let mouseY = 0;
+document.addEventListener("contextmenu", (e) => {
+  e.preventDefault();
+
+  rightClickedElement = e.target.closest('.desktop-icon');
+
+  const menu = document.getElementById("custom-menu");
+  const fileMenu = document.getElementById("file-menu");
+  const emptyMenu = document.getElementById("empty-menu");
+
+  // Reset
+  fileMenu.style.display = "none";
+  emptyMenu.style.display = "none";
+
+  // Show the appropriate menu
+  if (rightClickedElement) {
+    fileMenu.style.display = "block";
+  } else {
+    emptyMenu.style.display = "block";
+  }
+
+  menu.style.display = "block";
+  menu.style.left = `${e.pageX}px`;
+  menu.style.top = `${e.pageY}px`;
+});
+
+document.addEventListener("click", () => {
+  document.getElementById("custom-menu").style.display = "none";
+});
+
+window.addEventListener("resize", () => {
+  document.getElementById("custom-menu").style.display = "none";
+});
+function openFileFromMenu() {
+  if (rightClickedElement) {
+    const id = rightClickedElement.dataset.windowId;
+    const name = rightClickedElement.querySelector('span').textContent;
+    openFile(id, name);
+  }
+}
+
+function renameFile() {
+  if (rightClickedElement) {
+    const nameSpan = rightClickedElement.querySelector('span');
+    const oldName = nameSpan.textContent;
+    const newName = prompt("Enter new name:", oldName);
+    if (newName) {
+      nameSpan.textContent = newName;
+    }
+  }
+}
+
+function deleteFile() {
+  if (rightClickedElement) {
+    if (confirm("Delete this file?")) {
+      rightClickedElement.remove();
+    }
+  }
+}
+
+function createFile() {
+  const id = 'file-' + Date.now();
+  const pos = normalizePosition(mouseX, mouseY);
+  createDesktopIcon(id, 'New File', `<iframe src="notepad.html"></iframe>`, pos.left, pos.top, 'icons/notepad.png');
+}
+
+function createFolder() {
+  const id = 'folder-' + Date.now();
+  const pos = normalizePosition(mouseX, mouseY);
+  createDesktopIcon(id, 'New Folder', `<iframe src="explorer.html"></iframe>`, pos.left, pos.top, 'icons/explorer.png');
+}
+function normalizePosition(x, y) {
+  const gridSize = 100; // Adjust for icon size + margin
+  const desktop = WindowManager.desktop;
+  const bounds = desktop.getBoundingClientRect();
+
+  const relX = x - bounds.left;
+  const relY = y - bounds.top;
+
+  const snappedX = Math.floor(relX / gridSize) * gridSize;
+  const snappedY = Math.floor(relY / gridSize) * gridSize;
+
+  return {
+    left: Math.min(snappedX, bounds.width - gridSize) + 'px',
+    top: Math.min(snappedY, bounds.height - gridSize) + 'px'
+  };
+}
+
     const WindowManager = {
       windows: {},
       zIndex: 10,
