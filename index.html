@@ -274,7 +274,7 @@ async function loadDesktopIcons(folderId) {
   items.forEach(item => {
     createDesktopIcon(
       item.id, 
-      item.name, 
+      item.name+defaultFileType(item.type), 
       getAppContent(item), 
       item.left + "px", 
       item.top + "px", 
@@ -282,9 +282,18 @@ async function loadDesktopIcons(folderId) {
     );
   });
 }
+function defaultFileType(type) {
+  return type === "folder" 
+    ? "" 
+    : type === "app" 
+      ? ".app" 
+      : type === "file" 
+        ? ".txt" 
+        : ".?";
+}
 function defaultIconFor(type) {
   return type === "folder" 
-    ? "icons/explorer.png" 
+    ? "icons/folder.png" 
     : "icons/notepad.png";
 }
 
@@ -316,7 +325,7 @@ async function getDesktopFolderId() {
 async function renameFile() {
   if (!rightClickedElement) return;
   const id = parseInt(rightClickedElement.dataset.windowId, 10);
-  const oldName = rightClickedElement.querySelector("span").textContent;
+  const oldName = rightClickedElement.querySelector("span").textContent.replace(/\.[^/.]+$/, '');
   const newName = prompt("New name:", oldName);
   if (newName && newName !== oldName) {
     await db.files.update(id, { name: newName });
@@ -334,7 +343,7 @@ async function deleteFile() {
 }
 
 async function createFile() {
-  const name = prompt("File name:", "New File.txt");
+  const name = prompt("File name:", "New File");
   if (!name) return;
 
   // grid‐snapped mouseX, mouseY from your contextmenu handler
@@ -364,7 +373,7 @@ async function createFolder() {
     content: "",
     left: parseInt(left),
     top: parseInt(top),
-    iconUrl: "icons/explorer.png"
+    iconUrl: "icons/folder.png"
   });
   await loadDesktopIcons(await getDesktopFolderId());
 }
