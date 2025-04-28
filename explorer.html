@@ -296,11 +296,10 @@
 
   <script>
     document.addEventListener("DOMContentLoaded", function() {
-      // Initialize Dexie database
       const db = new Dexie("FileSystemDB");
-      db.version(3).stores({
-        files: "++id, name, type, parentId, content"
-      });
+      db.version(10).stores({
+  files: "++id, name, type, parentId, content, left, top, iconUrl"
+});
       // Global state
       let currentFolderId = 0;
       let breadcrumb = [{ id: 0, name: "root" }];

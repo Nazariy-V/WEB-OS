@@ -57,7 +57,7 @@
 <body>
   <div id="output"></div>
   <div class="cmd-line">
-    <span class="cmd-prompt" id="prompt">C:\></span>
+    <span class="cmd-prompt" id="prompt">root></span>
     <input type="text" id="cmdInput" autofocus />
   </div>
   <script> (async function () {
@@ -66,9 +66,9 @@
       const cmdPrompt = document.getElementById("prompt");
       // Initialize Dexie database (same as file explorer)
       const db = new Dexie("FileSystemDB");
-      db.version(3).stores({
-        files: "++id, name, type, parentId, content"
-      });
+      db.version(10).stores({
+  files: "++id, name, type, parentId, content, left, top, iconUrl"
+});
 
       let currentFolderId = 0;
       let breadcrumb = [{ id: 0, name: "root" }];

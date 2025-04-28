@@ -146,6 +146,7 @@
 <body>
   <div id="desktop"></div>
   <div id="taskbar"></div>
+  
   <div id="custom-menu">
     <ul id="file-menu" style="display: none;">
       <li onclick="openFileFromMenu()">Open</li>
@@ -157,7 +158,76 @@
       <li onclick="createFolder()">Create Folder</li>
     </ul>
   </div>  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dexie/3.2.2/dexie.min.js"></script>
   <script>
+    const db = new Dexie("FileSystemDB");
+    db.version(10).stores({
+  files: "++id, name, type, parentId, content, left, top, iconUrl"
+});
+const defaultApps = [
+  {
+    name: "File Explorer",
+    type: "app",
+    content: '<iframe src="explorer.html"></iframe>',
+    left: 20,
+    top: 20,
+    iconUrl: "icons/explorer.png"
+  },
+  {
+    name: "Console",
+    type: "app",
+    content: '<iframe src="console.html"></iframe>',
+    left: 20,
+    top: 120,
+    iconUrl: "icons/console.png"
+  },
+  {
+    name: "Notepad",
+    type: "app",
+    content: '<iframe src="notepad.html"></iframe>',
+    left: 20,
+    top: 220,
+    iconUrl: "icons/notepad.png"
+  }
+];
+(async function initDesktop() {
+  console.log("Initializing desktop...");
+  let desktopFolder = await db.files
+    .where({ name: "Desktop", type: "folder", parentId: 0 })
+    .first();
+
+  // if missing, create it
+  if (!desktopFolder) {
+    const id = await db.files.add({
+      name: "Desktop",
+      type: "folder",
+      parentId: 0,
+      content: "",
+      left: 0,
+      top: 0,
+      iconUrl: ""
+    });
+    desktopFolder = { id };
+  }
+  for (const app of defaultApps) {
+    const exists = await db.files
+      .where({ parentId: desktopFolder.id, name: app.name })
+      .first();
+    if (!exists) {
+      await db.files.add({
+        name:      app.name,
+        type:      app.type,
+        parentId:  desktopFolder.id,
+        content:   app.content,
+        left:      app.left,
+        top:       app.top,
+        iconUrl:   app.iconUrl
+      });
+    }
+  }
+  // now render whatever’s inside it
+  await loadDesktopIcons(desktopFolder.id);
+})();
     let rightClickedElement = null;
     let mouseX = 0;
     let mouseY = 0;
@@ -193,6 +263,41 @@ document.addEventListener("click", () => {
 window.addEventListener("resize", () => {
   document.getElementById("custom-menu").style.display = "none";
 });
+async function loadDesktopIcons(folderId) {
+  // clear existing icons
+  WindowManager.desktop.innerHTML = "";
+
+  // get all items in this folder
+  const items = await db.files.where({ parentId: folderId }).toArray();
+
+  // for each, create an icon
+  items.forEach(item => {
+    createDesktopIcon(
+      item.id, 
+      item.name, 
+      getAppContent(item), 
+      item.left + "px", 
+      item.top + "px", 
+      item.iconUrl || defaultIconFor(item.type)
+    );
+  });
+}
+function defaultIconFor(type) {
+  return type === "folder" 
+    ? "icons/explorer.png" 
+    : "icons/notepad.png";
+}
+
+function getAppContent(item) {
+  if (item.type === "folder") {
+    return `<iframe src="explorer.html?folderId=${item.id}"></iframe>`;
+  }else if (item.type === "app") {
+    return item.content;
+  }else if (item.type === "file"){
+    return `<iframe src="notepad.html?fileId=${item.id}"></iframe>`;
+  }
+}
+
 function openFileFromMenu() {
   if (rightClickedElement) {
     const id = rightClickedElement.dataset.windowId;
@@ -200,51 +305,83 @@ function openFileFromMenu() {
     openFile(id, name);
   }
 }
+async function getDesktopFolderId() {
+  const folder = await db.files
+    .where({ name: "Desktop", type: "folder", parentId: 0 })
+    .first();
+  console.log(folder);
+  return folder.id;
+}
 
-function renameFile() {
-  if (rightClickedElement) {
-    const nameSpan = rightClickedElement.querySelector('span');
-    const oldName = nameSpan.textContent;
-    const newName = prompt("Enter new name:", oldName);
-    if (newName) {
-      nameSpan.textContent = newName;
-    }
+async function renameFile() {
+  if (!rightClickedElement) return;
+  const id = parseInt(rightClickedElement.dataset.windowId, 10);
+  const oldName = rightClickedElement.querySelector("span").textContent;
+  const newName = prompt("New name:", oldName);
+  if (newName && newName !== oldName) {
+    await db.files.update(id, { name: newName });
+    await loadDesktopIcons(await getDesktopFolderId());
   }
 }
 
-function deleteFile() {
-  if (rightClickedElement) {
-    if (confirm("Delete this file?")) {
-      rightClickedElement.remove();
-    }
+async function deleteFile() {
+  if (!rightClickedElement) return;
+  const id = parseInt(rightClickedElement.dataset.windowId, 10);
+  if (confirm("Delete this item?")) {
+    await db.files.delete(id);
+    await loadDesktopIcons(await getDesktopFolderId());
   }
 }
 
-function createFile() {
-  const id = 'file-' + Date.now();
-  const pos = normalizePosition(mouseX, mouseY);
-  createDesktopIcon(id, 'New File', `<iframe src="notepad.html"></iframe>`, pos.left, pos.top, 'icons/notepad.png');
+async function createFile() {
+  const name = prompt("File name:", "New File.txt");
+  if (!name) return;
+
+  // grid‐snapped mouseX, mouseY from your contextmenu handler
+  const { left, top } = normalizePosition(mouseX, mouseY);
+  console.log(left, top);
+  const id = await db.files.add({
+    name,
+    type: "file",
+    parentId: await getDesktopFolderId(),
+    content: "",
+    left: parseInt(left),
+    top: parseInt(top),
+    iconUrl: "icons/notepad.png"
+  });
+  await loadDesktopIcons(await getDesktopFolderId());
 }
 
-function createFolder() {
-  const id = 'folder-' + Date.now();
-  const pos = normalizePosition(mouseX, mouseY);
-  createDesktopIcon(id, 'New Folder', `<iframe src="explorer.html"></iframe>`, pos.left, pos.top, 'icons/explorer.png');
+async function createFolder() {
+  const name = prompt("Folder name:", "New Folder");
+  if (!name) return;
+
+  const { left, top } = normalizePosition(mouseX, mouseY);
+  await db.files.add({
+    name,
+    type: "folder",
+    parentId: await getDesktopFolderId(),
+    content: "",
+    left: parseInt(left),
+    top: parseInt(top),
+    iconUrl: "icons/explorer.png"
+  });
+  await loadDesktopIcons(await getDesktopFolderId());
 }
 function normalizePosition(x, y) {
   const gridSize = 100; // Adjust for icon size + margin
-  const desktop = WindowManager.desktop;
-  const bounds = desktop.getBoundingClientRect();
+  const menu = document.getElementById('empty-menu');
+  const bounds = menu.getBoundingClientRect();
 
-  const relX = x - bounds.left;
-  const relY = y - bounds.top;
+  const relX = bounds.left;
+  const relY = bounds.top;
 
   const snappedX = Math.floor(relX / gridSize) * gridSize;
   const snappedY = Math.floor(relY / gridSize) * gridSize;
-
+  console.log(relX, relY);
   return {
-    left: Math.min(snappedX, bounds.width - gridSize) + 'px',
-    top: Math.min(snappedY, bounds.height - gridSize) + 'px'
+    left: Math.max(snappedX+20, 0),
+    top: Math.max(snappedY+20, 0)
   };
 }
 
@@ -487,10 +624,6 @@ function normalizePosition(x, y) {
       WindowManager.desktop.appendChild(icon);
     }
 
-    // Create sample desktop icons for multiple apps
-    createDesktopIcon('explorer', 'File Explorer', '<iframe src = "explorer.html"></iframe>', '20px', '20px', 'icons/explorer.png');
-    createDesktopIcon('console', 'Cosole', '<iframe src = "console.html"></iframe>', '20px', '120px', 'icons/console.png');
-    createDesktopIcon('notepad', 'Notepad', '<iframe src = "notepad.html"></iframe>', '20px', '220px', 'icons/notepad.png');
   </script>
 </body>
 </html>

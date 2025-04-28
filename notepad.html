@@ -60,9 +60,9 @@
   <script>
     (function () {
   const db = new Dexie("FileSystemDB");
-  db.version(3).stores({
-    files: "++id, name, type, parentId, content"
-  });
+  db.version(10).stores({
+  files: "++id, name, type, parentId, content, left, top, iconUrl"
+});
 
   const fileTitle = document.getElementById("fileTitle");
   const editor = document.getElementById("editor");
