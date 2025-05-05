@@ -302,7 +302,7 @@
         <input type="text" id="searchInput" placeholder="Search files and folders..." />
       </div>
     </div>
-    <div id="breadcrumb">Root</div>
+    <div id="breadcrumb">root</div>
   </header>
   <div class="container">
     <aside id="sidebar">
@@ -339,9 +339,9 @@
   </div>
 
   <script>
-    document.addEventListener("DOMContentLoaded", function () {
+    document.addEventListener("DOMContentLoaded", async function () {
       const db = new Dexie("FileSystemDB");
-      db.version(10).stores({
+      db.version(15).stores({
         files: "++id, name, type, parentId, content, left, top, iconUrl"
       });
       // Global state
@@ -350,10 +350,12 @@
         return params.get(param);
       }
 
-      let currentFolderId = getQueryParam("folderId") || 0;
+      let currentFolderId = parseInt(getQueryParam("folderId")) || 0;
       let root = { id: 0, name: "root", parentId: null };
-      let basepath = findBreadcrumbPath([loadFolderTree], currentFolderId);
-      let breadcrumb = basepath ? [root, ...basepath] : [root];
+      console.log(loadFolderTree());
+      let basepath = currentFolderId ? await findBreadcrumbPath(loadFolderTree(), currentFolderId) : null;
+      let breadcrumb = basepath ? [root].concat(basepath) : [root];
+      loadFiles(currentFolderId);
       console.log(breadcrumb)
       let selectedItems = new Set(); // For multi-select
       let currentView = "list"; // or "grid"
@@ -443,7 +445,7 @@
               loadFiles(item.id);
             } else {
               console.log(parent)
-              parent.openFile(item.id, item.name);
+              parent.openFile(item);
             }
           };
           itemDiv.appendChild(infoSpan);
@@ -469,27 +471,21 @@
         });
       }
 
-      function findBreadcrumbPath(tree, targetId, path = []) {
-        for (const node of tree) {
-          const current = { id: node.id, name: node.name, parentId: node.parentId };
-          const newPath = [...path, current];
+      async function findBreadcrumbPath(nodes, targetId) {
+        const desktop = await db.files.where("name").equals("Desktop").first();
+        const target = await db.files.where("id").equals(parseInt(targetId)).first();
+        console.log(target, targetId, db.files.where("id"));
+        if (!desktop) return null;
+        await db.files.where({ "parentId": desktop.id, "id": targetId }).first();
+        let path = [{ id: desktop.id, name: desktop.name, parentId: desktop.parentId }, { id: target.id, name: target.name, parentId: target.parentId }];
+        return path;
 
-          if (node.id === targetId) {
-            return newPath;
-          }
-
-          if (node.children && node.children.length > 0) {
-            const result = findBreadcrumbPath(node.children, targetId, newPath);
-            if (result) return result;
-          }
-        }
-
-        return null;
       }
 
       function updateBreadcrumb() {
         breadcrumbDiv.innerHTML = "";
         breadcrumb.forEach((crumb, index) => {
+          console.log("Crumbs ",crumb, index, breadcrumb);
           const span = document.createElement("span");
           span.textContent = crumb.name;
           span.style.cursor = "pointer";
@@ -530,7 +526,7 @@
           li.onclick = (e) => {
             e.stopPropagation();
             currentFolderId = node.id;
-            breadcrumb = [{ id: 0, name: "Root" }]; // reset breadcrumb
+            breadcrumb = [{ id: 0, name: "root", parentId: null }]; // reset breadcrumb
             // Build breadcrumb by traversing upward (if needed, here simplified)
             breadcrumb.push({ id: node.id, name: node.name, parentId: node.parentId });
             selectedItems.clear();

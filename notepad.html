@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -13,6 +14,7 @@
       background: #fff;
       color: #000;
     }
+
     header {
       background: #0A64AD;
       color: #fff;
@@ -21,10 +23,12 @@
       justify-content: space-between;
       align-items: center;
     }
+
     header h1 {
       font-size: 1.2em;
       margin: 0;
     }
+
     header button {
       background: #fff;
       color: #0A64AD;
@@ -35,6 +39,7 @@
       margin-left: 5px;
       border-radius: 3px;
     }
+
     textarea {
       width: 100%;
       height: calc(100vh - 50px);
@@ -48,6 +53,7 @@
     }
   </style>
 </head>
+
 <body>
   <header>
     <h1 id="fileTitle">Notepad - [Untitled]</h1>
@@ -59,68 +65,69 @@
   <textarea id="editor" placeholder="Type your content here..."></textarea>
   <script>
     (function () {
-  const db = new Dexie("FileSystemDB");
-  db.version(10).stores({
-  files: "++id, name, type, parentId, content, left, top, iconUrl"
-});
+      const db = new Dexie("FileSystemDB");
+      db.version(15).stores({
+        files: "++id, name, type, parentId, content, left, top, iconUrl"
+      });
 
-  const fileTitle = document.getElementById("fileTitle");
-  const editor = document.getElementById("editor");
-  const saveBtn = document.getElementById("saveBtn");
-  const cancelBtn = document.getElementById("cancelBtn");
+      const fileTitle = document.getElementById("fileTitle");
+      const editor = document.getElementById("editor");
+      const saveBtn = document.getElementById("saveBtn");
+      const cancelBtn = document.getElementById("cancelBtn");
 
-  function getQueryParam(param) {
-    const params = new URLSearchParams(window.location.search);
-    return params.get(param);
-  }
-
-  const fileId = getQueryParam("fileId");
-
-  // Load file data if editing an existing file
-  if (fileId) {
-    db.files.get(Number(fileId)).then(file => {
-      if (file) {
-        fileTitle.textContent = "Notepad - " + file.name;
-        editor.value = file.content || "";
-      } else {
-        fileTitle.textContent = "Notepad - [File Not Found]";
+      function getQueryParam(param) {
+        const params = new URLSearchParams(window.location.search);
+        return params.get(param);
       }
-    }).catch(err => {
-      fileTitle.textContent = "Notepad - [Error loading file]";
-      console.error(err);
-    });
-  } else {
-    fileTitle.textContent = "Notepad - [Untitled]";
-  }
 
-  // Save button: update file content if fileId exists; otherwise prompt for file name to create new file.
-  saveBtn.addEventListener("click", async () => {
-    if (fileId) {
-      await db.files.update(Number(fileId), { content: editor.value });
-      alert("File saved!");
-    } else {
-      const name = prompt("Enter file name:");
-      if (name) {
-        const newId = await db.files.add({
-          name,
-          type: "file",
-          parentId: 0,
-          content: editor.value
+      const fileId = getQueryParam("fileId");
+
+      // Load file data if editing an existing file
+      if (fileId) {
+        db.files.get(Number(fileId)).then(file => {
+          if (file) {
+            fileTitle.textContent = "Notepad - " + file.name;
+            editor.value = file.content || "";
+          } else {
+            fileTitle.textContent = "Notepad - [File Not Found]";
+          }
+        }).catch(err => {
+          fileTitle.textContent = "Notepad - [Error loading file]";
+          console.error(err);
         });
-        alert("New file created with ID: " + newId);
-        // Optionally, update URL so subsequent edits open the same file:
-        window.history.replaceState({}, "", `?fileId=${newId}`);
-        fileTitle.textContent = "Notepad - " + name;
+      } else {
+        fileTitle.textContent = "Notepad - [Untitled]";
       }
-    }
-  });
 
-  // Cancel button: simply navigate back (or close window)
-  cancelBtn.addEventListener("click", () => {
-    window.history.back();
-  });
-})();
+      // Save button: update file content if fileId exists; otherwise prompt for file name to create new file.
+      saveBtn.addEventListener("click", async () => {
+        if (fileId) {
+          await db.files.update(Number(fileId), { content: editor.value });
+          alert("File saved!");
+        } else {
+          const name = prompt("Enter file name:");
+          if (name) {
+            const newId = await db.files.add({
+              name,
+              type: "file",
+              parentId: 0,
+              content: editor.value
+            });
+            alert("New file created with ID: " + newId);
+            // Optionally, update URL so subsequent edits open the same file:
+            window.history.replaceState({}, "", `?fileId=${newId}`);
+            fileTitle.textContent = "Notepad - " + name;
+          }
+        }
+      });
+
+      // Cancel button: simply navigate back (or close window)
+      cancelBtn.addEventListener("click", () => {
+        window.history.back();
+      });
+    })();
 
   </script>
 </body>
+
 </html>

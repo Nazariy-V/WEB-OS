@@ -66,9 +66,9 @@
       const cmdPrompt = document.getElementById("prompt");
       // Initialize Dexie database (same as file explorer)
       const db = new Dexie("FileSystemDB");
-      db.version(10).stores({
-  files: "++id, name, type, parentId, content, left, top, iconUrl"
-});
+      db.version(15).stores({
+        files: "++id, name, type, parentId, content, left, top, iconUrl"
+      });
 
       let currentFolderId = 0;
       let breadcrumb = [{ id: 0, name: "root" }];
@@ -167,12 +167,12 @@
         const filename = args.join(" ");
         const file = await db.files.where({ parentId: currentFolderId, type: "file", name: filename }).first();
         if (file) {
-          parent.openFile(file.id, file.name);
+          parent.openFile(file);
         } else {
           printOutput(`File "${filename}" not found.`);
         }
       }
-      async function cmd_echo(args){
+      async function cmd_echo(args) {
         printOutput(args.join(" "));
       }
 
