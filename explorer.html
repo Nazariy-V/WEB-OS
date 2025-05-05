@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,7 +9,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/dexie/3.2.2/dexie.min.js"></script>
   <style>
     /* CSS Variables for themes */
-    
+
     :root {
       --bg-color: #f2f2f2;
       --text-color: #333;
@@ -18,6 +19,7 @@
       --item-hover-bg: #dfdfdf;
       --border-color: #ddd;
     }
+
     [data-theme="dark"] {
       --bg-color: #121212;
       --text-color: #e0e0e0;
@@ -31,49 +33,60 @@
     * {
       box-sizing: border-box;
     }
+
     body {
       margin: 0;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: var(--bg-color);
       color: var(--text-color);
     }
+
     header {
       background: var(--header-bg);
       padding: 10px 20px;
       border-bottom: 1px solid var(--border-color);
     }
+
     .topbar {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
     }
+
     header h1 {
       margin: 5px 0;
       font-size: 1.5em;
     }
+
     .toolbar {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
     }
+
     .toolbar button {
       padding: 8px 12px;
       font-size: 14px;
+      color: var(--text-color);
       cursor: pointer;
       border: none;
       background: var(--primary-color);
+
       border-radius: 4px;
       transition: background 0.2s;
     }
+
     .toolbar button:hover {
       background: darken(var(--primary-color), 10%);
     }
+
     .search-container {
       margin-top: 8px;
       flex-basis: 100%;
       text-align: right;
     }
+
     .search-container input {
       color: var(--text-color);
       padding: 6px 10px;
@@ -83,15 +96,18 @@
       border: 1px solid var(--border-color);
       border-radius: 4px;
     }
+
     #breadcrumb {
       margin: 10px 20px;
       font-size: 14px;
     }
+
     /* Layout: Sidebar + Main */
     .container {
       display: flex;
       min-height: calc(100vh - 120px);
     }
+
     aside#sidebar {
       width: 250px;
       border-right: 1px solid var(--border-color);
@@ -99,29 +115,36 @@
       background: var(--item-bg);
       transition: transform 0.3s;
     }
+
     aside#sidebar.hidden {
       transform: translateX(-260px);
     }
+
     aside#sidebar h2 {
       margin-top: 0;
       font-size: 1.2em;
     }
+
     #folderTree {
       list-style: none;
       padding: 0;
       margin: 0;
     }
+
     #folderTree li {
       margin: 4px 0;
       cursor: pointer;
     }
+
     #folderTree li:hover {
       text-decoration: underline;
     }
+
     main#mainContent {
       flex: 1;
       padding: 15px;
     }
+
     #file-explorer {
       background: var(--item-bg);
       border: 1px solid var(--border-color);
@@ -132,6 +155,7 @@
       gap: 8px;
       transition: all 0.2s;
     }
+
     /* List view */
     #file-explorer.list .item {
       display: flex;
@@ -140,31 +164,38 @@
       padding: 8px;
       border-bottom: 1px solid var(--border-color);
     }
+
     #file-explorer.list .item:last-child {
       border-bottom: none;
     }
+
     /* Grid view */
     #file-explorer.grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
       gap: 10px;
     }
+
     #file-explorer.grid .item {
       padding: 10px;
       border: 1px solid var(--border-color);
       border-radius: 4px;
       text-align: center;
     }
+
     .item {
       background: var(--item-bg);
       transition: background 0.2s;
     }
+
     .item:hover {
       background: var(--item-hover-bg);
     }
+
     .item .item-info {
       cursor: pointer;
     }
+
     .item .actions button {
       background: none;
       border: none;
@@ -172,45 +203,54 @@
       cursor: pointer;
       font-size: 14px;
     }
+
     .item input[type="checkbox"] {
       margin-right: 8px;
     }
+
     /* Modals */
     .modal {
       display: none;
       position: fixed;
       z-index: 1000;
-      left: 0; top: 0;
+      left: 0;
+      top: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0, 0, 0, 0.5);
       align-items: center;
       justify-content: center;
     }
+
     .modal.active {
       display: flex;
     }
+
     .modal-content {
       background: var(--item-bg);
       padding: 20px;
       border-radius: 4px;
       width: 300px;
       position: relative;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
     }
+
     .modal-content h2 {
       margin-top: 0;
     }
+
     .modal-content label {
       display: block;
       margin: 10px 0 5px;
     }
+
     .modal-content input,
     .modal-content textarea {
       width: 100%;
       padding: 8px;
       margin-bottom: 10px;
     }
+
     .modal-content button {
       padding: 8px 12px;
       cursor: pointer;
@@ -219,6 +259,7 @@
       color: #fff;
       border-radius: 4px;
     }
+
     .modal-close {
       position: absolute;
       top: 8px;
@@ -226,6 +267,7 @@
       font-size: 18px;
       cursor: pointer;
     }
+
     /* Responsive adjustments */
     @media (max-width: 768px) {
       aside#sidebar {
@@ -235,12 +277,14 @@
         left: 0;
         top: 0;
       }
+
       main#mainContent {
         margin-left: 0;
       }
     }
   </style>
 </head>
+
 <body data-theme="light">
   <header>
     <div class="topbar">
@@ -295,14 +339,22 @@
   </div>
 
   <script>
-    document.addEventListener("DOMContentLoaded", function() {
+    document.addEventListener("DOMContentLoaded", function () {
       const db = new Dexie("FileSystemDB");
       db.version(10).stores({
-  files: "++id, name, type, parentId, content, left, top, iconUrl"
-});
+        files: "++id, name, type, parentId, content, left, top, iconUrl"
+      });
       // Global state
-      let currentFolderId = 0;
-      let breadcrumb = [{ id: 0, name: "root" }];
+      function getQueryParam(param) {
+        const params = new URLSearchParams(window.location.search);
+        return params.get(param);
+      }
+
+      let currentFolderId = getQueryParam("folderId") || 0;
+      let root = { id: 0, name: "root", parentId: null };
+      let basepath = findBreadcrumbPath([loadFolderTree], currentFolderId);
+      let breadcrumb = basepath ? [root, ...basepath] : [root];
+      console.log(breadcrumb)
       let selectedItems = new Set(); // For multi-select
       let currentView = "list"; // or "grid"
 
@@ -386,12 +438,12 @@
           infoSpan.onclick = () => {
             if (item.type === "folder") {
               currentFolderId = item.id;
-              breadcrumb.push({ id: item.id, name: item.name }); 
+              breadcrumb.push({ id: item.id, name: item.name, parentId: item.parentId });
               selectedItems.clear();
               loadFiles(item.id);
             } else {
               console.log(parent)
-              parent.openFile(item.id,item.name);
+              parent.openFile(item.id, item.name);
             }
           };
           itemDiv.appendChild(infoSpan);
@@ -417,7 +469,24 @@
         });
       }
 
-      // Update breadcrumb navigation
+      function findBreadcrumbPath(tree, targetId, path = []) {
+        for (const node of tree) {
+          const current = { id: node.id, name: node.name, parentId: node.parentId };
+          const newPath = [...path, current];
+
+          if (node.id === targetId) {
+            return newPath;
+          }
+
+          if (node.children && node.children.length > 0) {
+            const result = findBreadcrumbPath(node.children, targetId, newPath);
+            if (result) return result;
+          }
+        }
+
+        return null;
+      }
+
       function updateBreadcrumb() {
         breadcrumbDiv.innerHTML = "";
         breadcrumb.forEach((crumb, index) => {
@@ -450,6 +519,7 @@
         }
         const tree = buildTree(0);
         renderFolderTree(tree);
+        return tree
       }
 
       function renderFolderTree(tree, parentUl = folderTreeUl) {
@@ -460,9 +530,9 @@
           li.onclick = (e) => {
             e.stopPropagation();
             currentFolderId = node.id;
-            breadcrumb = [{id: 0, name: "Root"}]; // reset breadcrumb
+            breadcrumb = [{ id: 0, name: "Root" }]; // reset breadcrumb
             // Build breadcrumb by traversing upward (if needed, here simplified)
-            breadcrumb.push({ id: node.id, name: node.name });
+            breadcrumb.push({ id: node.id, name: node.name, parentId: node.parentId });
             selectedItems.clear();
             loadFiles(node.id);
           };
@@ -570,10 +640,10 @@
       });
       searchInput.addEventListener("input", () => loadFiles(currentFolderId));
 
-      // Initial load
-      loadFiles();
+      loadFiles(currentFolderId);
       loadFolderTree();
     });
   </script>
 </body>
+
 </html>
